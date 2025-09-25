@@ -81,25 +81,41 @@ st.sidebar.header("Pipe Selection")
 
 pipe_type = st.sidebar.selectbox("Pipe Type", ["Layflat TPU", "HDPE"])
 
-# Outside Diameter input (used for both pipe types)
-# For HDPE IPS examples: 10\" -> 10.75 OD, 12\" -> 12.75 OD
-default_od = 12.30 if pipe_type == "Layflat TPU" else 12.75
-od_in = st.sidebar.number_input(
-    "Outside Diameter (in)",
-    min_value=1.0, max_value=60.0, value=float(default_od), step=2.0,
-    help="Enter OD in inches. For HDPE IPS: 10\"→10.75, 12\"→12.75 (enter actual OD)."
-)
+# Nominal diameters up to 24 in
+nominal_options = ["4 in", "6 in", "8 in", "10 in", "12 in", 
+                   "14 in", "16 in", "18 in", "20 in", "22 in", "24 in"]
+
+nominal_choice = st.sidebar.selectbox("Nominal Diameter", nominal_options, index=nominal_options.index("12 in"))
 
 if pipe_type == "Layflat TPU":
-    wall_in = 0.15  # fixed
+    od_in = float(nominal_choice.split()[0])  # OD ≈ nominal
+    wall_in = 0.15
     id_in = od_in - 2 * wall_in
-    k_wall = 0.116  # TPU: Btu/hr-ft-F
+    k_wall = 0.116  # TPU thermal conductivity
 else:
+    # HDPE IPS OD map
+    HDPE_OD_MAP = {
+        "4 in": 4.500,
+        "6 in": 6.625,
+        "8 in": 8.625,
+        "10 in": 10.750,
+        "12 in": 12.750,
+        "14 in": 14.000,
+        "16 in": 16.000,
+        "18 in": 18.000,
+        "20 in": 20.000,
+        "22 in": 22.000,
+        "24 in": 24.000,
+    }
+    od_in = HDPE_OD_MAP[nominal_choice]
     dr_list = [7, 9, 11, 13.5, 17, 21, 26, 32.5]
     dr = st.sidebar.selectbox("HDPE DR Rating", dr_list, index=dr_list.index(17))
-    wall_in = od_in / float(dr)  # inches
+    wall_in = od_in / float(dr)
     id_in = od_in - 2 * wall_in
-    k_wall = 0.26  # HDPE: Btu/hr-ft-F (≈0.45 W/m-K)
+    k_wall = 0.26  # HDPE thermal conductivity
+
+st.sidebar.write(f"**Nominal Diameter:** {nominal_choice}")
+st.sidebar.write(f"**Actual OD:** {od_in:.3f} in | **ID:** {id_in:.3f} in")
 
 # Guard against invalid geometry
 if id_in <= 0:
