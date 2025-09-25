@@ -86,7 +86,7 @@ pipe_type = st.sidebar.selectbox("Pipe Type", ["Layflat TPU", "HDPE"])
 default_od = 12.30 if pipe_type == "Layflat TPU" else 12.75
 od_in = st.sidebar.number_input(
     "Outside Diameter (in)",
-    min_value=1.0, max_value=60.0, value=float(default_od), step=0.05,
+    min_value=1.0, max_value=60.0, value=float(default_od), step=2.0,
     help="Enter OD in inches. For HDPE IPS: 10\"→10.75, 12\"→12.75 (enter actual OD)."
 )
 
