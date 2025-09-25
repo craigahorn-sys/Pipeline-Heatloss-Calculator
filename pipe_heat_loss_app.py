@@ -13,14 +13,49 @@ try:
 except Exception:
     pass  # continue without logo if not found
 
-# Branded CSS
+# ---------------- Dark Theme CSS ----------------
 st.markdown("""
 <style>
-h1, h2, h3 { color: #0E6251; }
-table { border-collapse: collapse; width: 100%; }
-th, td { text-align: center !important; border: 1px solid #ddd; padding: 8px; }
-tr:nth-child(even) { background-color: #f2f2f2; }
-th { background-color: #0E6251; color: white; }
+/* Overall background */
+body, .stApp {
+    background-color: #121212;
+    color: #E0E0E0;
+}
+
+/* Sidebar background */
+section[data-testid="stSidebar"] {
+    background-color: #1E1E1E;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: #4DB6AC !important;  /* teal-green accent */
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #1E1E1E;
+    color: #E0E0E0;
+}
+th, td {
+    text-align: center !important;
+    border: 1px solid #333;
+    padding: 8px;
+}
+tr:nth-child(even) {
+    background-color: #2A2A2A;
+}
+th {
+    background-color: #0E6251;
+    color: white;
+}
+
+/* Input labels */
+label, .stNumberInput label, .stSelectbox label {
+    color: #E0E0E0 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -217,12 +252,12 @@ st.markdown(df_fmt.to_html(index=False, justify="center"), unsafe_allow_html=Tru
 
 # ---------------- Chart ----------------
 fig, ax = plt.subplots()
-ax.plot(df["Flow (bbl/min)"], df["Required Inlet Temp (°F)"], marker="o", color="#0E6251", label="Required Inlet")
+ax.plot(df["Flow (bbl/min)"], df["Required Inlet Temp (°F)"], marker="o", color="#4DB6AC", label="Required Inlet")
 ax.plot(df["Flow (bbl/min)"], df["Outlet Temp (°F)"], marker="s", linestyle="--", color="orange", label="Outlet")
-ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choice} | OD {od_in:.2f} in | ID {id_in:.2f} in", color="#0E6251")
+ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choice} | OD {od_in:.2f} in | ID {id_in:.2f} in", color="#4DB6AC")
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
-ax.grid(True)
+ax.grid(True, color="#333")
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.legend()
@@ -238,4 +273,5 @@ with st.expander("Notes / Tips"):
 - UA per mile: {UA_per_mile:,.0f} Btu/hr·°F·mile  
 - UA total: {UA_total:,.0f} Btu/hr·°F
 """)
+
 
