@@ -79,7 +79,7 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
     UA_total = UA_pm * float(length_miles)
 
     flows = np.arange(flow_min, flow_max + 1, flow_step, dtype=float)
-    required_in, losses, outlet_vals, fuel_costs = [], [], [], []
+    required_in, losses, heater_duties, outlet_vals, fuel_costs = [], [], [], [], []
 
     for f in flows:
         m_dot = f * lb_per_bbl * 60.0
@@ -90,16 +90,19 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         T_in_required = T_amb + (T_out_target - T_amb) * np.exp(k)
         required_in.append(T_in_required)
 
-        # Heat loss (at required inlet to target)
+        # Pipe heat loss (for info only)
         Q_loss = mcp * (T_in_required - T_out_target)
         losses.append(Q_loss / 1e6)
 
         if T_source < T_in_required:
-            # Heater runs: outlet forced to target, cost > 0
+            # Heater must raise from source temp to required inlet
+            Q_heater = mcp * (T_in_required - T_source)
+            heater_duties.append(Q_heater / 1e6)
             outlet_vals.append(T_out_target)
-            fuel_cost = ((Q_loss * 24) / eff_frac) / btu_per_unit * fuel_price
+            fuel_cost = ((Q_heater * 24) / eff_frac) / btu_per_unit * fuel_price
         else:
-            # Heater not needed: outlet temp cools naturally, cost = 0
+            Q_heater = 0
+            heater_duties.append(0)
             outlet_vals.append(T_amb + (T_source - T_amb) * np.exp(-k))
             fuel_cost = 0
 
@@ -111,6 +114,7 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         "Required Inlet Temp (°F)": np.round(required_in, 1),
         "Outlet Temp (°F)": np.round(outlet_vals, 1),
         "Heat Loss (MMBtu/hr)": np.round(losses, 2),
+        "Heater Duty (MMBtu/hr)": np.round(heater_duties, 2),
         "Daily Fuel Cost ($)": np.round(fuel_costs, 0)
     })
     return df, UA_pm, UA_total
@@ -196,6 +200,7 @@ df_fmt["Source Temp (°F)"] = df_fmt["Source Temp (°F)"].map("{:.1f} °F".forma
 df_fmt["Required Inlet Temp (°F)"] = df_fmt["Required Inlet Temp (°F)"].map("{:.1f} °F".format)
 df_fmt["Outlet Temp (°F)"] = df_fmt["Outlet Temp (°F)"].map("{:.1f} °F".format)
 df_fmt["Heat Loss (MMBtu/hr)"] = df_fmt["Heat Loss (MMBtu/hr)"].map("{:.2f}".format)
+df_fmt["Heater Duty (MMBtu/hr)"] = df_fmt["Heater Duty (MMBtu/hr)"].map("{:.2f}".format)
 df_fmt["Daily Fuel Cost ($)"] = df_fmt["Daily Fuel Cost ($)"].map(lambda x: f"${x:,.0f}")
 
 df_fmt = df_fmt[[
@@ -204,6 +209,7 @@ df_fmt = df_fmt[[
     "Required Inlet Temp (°F)",
     "Outlet Temp (°F)",
     "Heat Loss (MMBtu/hr)",
+    "Heater Duty (MMBtu/hr)",
     "Daily Fuel Cost ($)"
 ]]
 
