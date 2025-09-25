@@ -52,7 +52,8 @@ def UA_per_mile_nested(inner_nom_in: float, outer_nom_in: float, wall_in: float,
     return 1.0 / (R_inner + R_air + R_outer + R_o)
 
 def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
-                     T_out_target, T_source, flow_min=15, flow_max=60, flow_step=5,
+                     T_out_target, T_source, eff_frac, fuel_price, btu_per_unit,
+                     flow_min=15, flow_max=60, flow_step=5,
                      nested_cfg=None):
     cp = 1.0  # Btu/lb-F
     lb_per_bbl = 42.0 * 8.34  # 350.28 lb/bbl
@@ -78,7 +79,7 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
     UA_total = UA_pm * float(length_miles)
 
     flows = np.arange(flow_min, flow_max + 1, flow_step, dtype=float)
-    required_in, losses, outlet_actual = [], [], []
+    required_in, losses, outlet_vals, fuel_costs = [], [], [], []
 
     for f in flows:
         m_dot = f * lb_per_bbl * 60.0
@@ -89,20 +90,28 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         T_in_required = T_amb + (T_out_target - T_amb) * np.exp(k)
         required_in.append(T_in_required)
 
-        # Heat loss at required inlet
+        # Heat loss (at required inlet to target)
         Q_loss = mcp * (T_in_required - T_out_target)
         losses.append(Q_loss / 1e6)
 
-        # Expected outlet given source temp
-        T_out_calc = T_amb + (T_source - T_amb) * np.exp(-k)
-        outlet_actual.append(T_out_calc)
+        if T_source < T_in_required:
+            # Heater runs: outlet forced to target, cost > 0
+            outlet_vals.append(T_out_target)
+            fuel_cost = ((Q_loss * 24) / eff_frac) / btu_per_unit * fuel_price
+        else:
+            # Heater not needed: outlet temp cools naturally, cost = 0
+            outlet_vals.append(T_amb + (T_source - T_amb) * np.exp(-k))
+            fuel_cost = 0
+
+        fuel_costs.append(fuel_cost)
 
     df = pd.DataFrame({
         "Flow (bbl/min)": flows.astype(int),
-        "Required Inlet Temp (°F)": np.round(required_in, 1),
         "Source Temp (°F)": T_source,
-        "Expected Outlet Temp (°F)": np.round(outlet_actual, 1),
-        "Heat Loss (MMBtu/hr)": np.round(losses, 2)
+        "Required Inlet Temp (°F)": np.round(required_in, 1),
+        "Outlet Temp (°F)": np.round(outlet_vals, 1),
+        "Heat Loss (MMBtu/hr)": np.round(losses, 2),
+        "Daily Fuel Cost ($)": np.round(fuel_costs, 0)
     })
     return df, UA_pm, UA_total
 
@@ -163,19 +172,17 @@ fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01
 
 fuel_btu = {"Propane": 91500, "Diesel": 138700, "Natural Gas": 103000}
 btu_per_unit = fuel_btu[fuel_type]
+eff_frac = efficiency / 100.0
 
 # ---------------- Run Calculation ----------------
 df, UA_per_mile, UA_total = inlet_temp_curve(
     T_amb=T_amb, wind_mph=wind_mph, length_miles=length_miles,
     id_in=id_in, wall_in=wall_in, k_wall=k_wall,
     T_out_target=T_out_target, T_source=T_source,
+    eff_frac=eff_frac, fuel_price=fuel_price, btu_per_unit=btu_per_unit,
     flow_min=flow_min, flow_max=flow_max, flow_step=flow_step,
     nested_cfg=nested_cfg
 )
-
-eff_frac = efficiency / 100.0
-df["Daily Fuel Cost ($)"] = ((df["Heat Loss (MMBtu/hr)"] * 1e6 * 24 / eff_frac) / btu_per_unit) * fuel_price
-df["Daily Fuel Cost ($)"] = df["Daily Fuel Cost ($)"].round(0)
 
 # ---------------- Results Table ----------------
 st.subheader(
@@ -185,18 +192,27 @@ st.subheader(
 
 df_fmt = df.copy()
 df_fmt["Flow (bbl/min)"] = df_fmt["Flow (bbl/min)"].map("{:.0f}".format)
-df_fmt["Required Inlet Temp (°F)"] = df_fmt["Required Inlet Temp (°F)"].map("{:.1f} °F".format)
 df_fmt["Source Temp (°F)"] = df_fmt["Source Temp (°F)"].map("{:.1f} °F".format)
-df_fmt["Expected Outlet Temp (°F)"] = df_fmt["Expected Outlet Temp (°F)"].map("{:.1f} °F".format)
+df_fmt["Required Inlet Temp (°F)"] = df_fmt["Required Inlet Temp (°F)"].map("{:.1f} °F".format)
+df_fmt["Outlet Temp (°F)"] = df_fmt["Outlet Temp (°F)"].map("{:.1f} °F".format)
 df_fmt["Heat Loss (MMBtu/hr)"] = df_fmt["Heat Loss (MMBtu/hr)"].map("{:.2f}".format)
-df_fmt["Daily Fuel Cost ($)"] = df_fmt["Daily Fuel Cost ($)"].map("${:,.0f}".format)
+df_fmt["Daily Fuel Cost ($)"] = df_fmt["Daily Fuel Cost ($)"].map(lambda x: f"${x:,.0f}")
+
+df_fmt = df_fmt[[
+    "Flow (bbl/min)",
+    "Source Temp (°F)",
+    "Required Inlet Temp (°F)",
+    "Outlet Temp (°F)",
+    "Heat Loss (MMBtu/hr)",
+    "Daily Fuel Cost ($)"
+]]
 
 st.markdown(df_fmt.to_html(index=False, justify="center"), unsafe_allow_html=True)
 
 # ---------------- Chart ----------------
 fig, ax = plt.subplots()
-ax.plot(df["Flow (bbl/min)"], df["Required Inlet Temp (°F)"], marker="o", color="#0E6251")
-ax.plot(df["Flow (bbl/min)"], df["Expected Outlet Temp (°F)"], marker="s", linestyle="--", color="orange", label="Expected Outlet")
+ax.plot(df["Flow (bbl/min)"], df["Required Inlet Temp (°F)"], marker="o", color="#0E6251", label="Required Inlet")
+ax.plot(df["Flow (bbl/min)"], df["Outlet Temp (°F)"], marker="s", linestyle="--", color="orange", label="Outlet")
 ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choice} | OD {od_in:.2f} in | ID {id_in:.2f} in", color="#0E6251")
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
