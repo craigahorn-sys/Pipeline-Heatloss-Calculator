@@ -189,8 +189,15 @@ else:  # HDPE
     id_in = od_in - 2 * wall_in
     k_wall = 0.26
 
-st.sidebar.write(f"**Nominal Diameter:** {nominal_choice}")
-st.sidebar.write(f"**Actual OD:** {od_in:.3f} in | **ID:** {id_in:.3f} in")
+# Brightened Nominal + Actual display
+st.sidebar.markdown(
+    f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>",
+    unsafe_allow_html=True
+)
+st.sidebar.markdown(
+    f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>",
+    unsafe_allow_html=True
+)
 
 st.sidebar.header("Conditions")
 T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0)
@@ -275,5 +282,3 @@ with st.expander("Notes / Tips"):
 - UA per mile: {UA_per_mile:,.0f} Btu/hr·°F·mile  
 - UA total: {UA_total:,.0f} Btu/hr·°F
 """)
-
-
