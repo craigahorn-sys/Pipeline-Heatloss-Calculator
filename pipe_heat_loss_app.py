@@ -13,18 +13,18 @@ try:
 except Exception:
     pass  # continue without logo if not found
 
-# ---------------- Dark Theme CSS ----------------
+# ---------------- Brighter Dark Theme CSS ----------------
 st.markdown("""
 <style>
 /* Overall background */
 body, .stApp {
-    background-color: #121212;
-    color: #E0E0E0;
+    background-color: #1B1B1B;  /* lighter charcoal */
+    color: #EAEAEA;            /* brighter text */
 }
 
 /* Sidebar background */
 section[data-testid="stSidebar"] {
-    background-color: #1E1E1E;
+    background-color: #242424;  /* slightly lighter than before */
 }
 
 /* Headings */
@@ -36,16 +36,16 @@ h1, h2, h3 {
 table {
     border-collapse: collapse;
     width: 100%;
-    background-color: #1E1E1E;
-    color: #E0E0E0;
+    background-color: #242424;
+    color: #EAEAEA;
 }
 th, td {
     text-align: center !important;
-    border: 1px solid #333;
+    border: 1px solid #444;
     padding: 8px;
 }
 tr:nth-child(even) {
-    background-color: #2A2A2A;
+    background-color: #2E2E2E;
 }
 th {
     background-color: #0E6251;
@@ -54,7 +54,7 @@ th {
 
 /* Input labels */
 label, .stNumberInput label, .stSelectbox label {
-    color: #E0E0E0 !important;
+    color: #EAEAEA !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -257,7 +257,9 @@ ax.plot(df["Flow (bbl/min)"], df["Outlet Temp (°F)"], marker="s", linestyle="--
 ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choice} | OD {od_in:.2f} in | ID {id_in:.2f} in", color="#4DB6AC")
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
-ax.grid(True, color="#333")
+ax.grid(True, color="#444")
+ax.set_facecolor("#1B1B1B")   # match dark background
+ax.tick_params(colors="#EAEAEA")  # brighten axis labels
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.legend()
