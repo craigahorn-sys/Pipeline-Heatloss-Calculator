@@ -14,16 +14,21 @@ try:
 except Exception:
     pass  # continue without logo if not found
 
-# ---------------- Brighter Dark Theme CSS ----------------
+# ---------------- Brighter Dark Theme CSS (with readable help/description + print mode) ----------------
 st.markdown("""
 <style>
+/* Overall app */
 body, .stApp {
     background-color: #1B1B1B;
     color: #EAEAEA;
 }
+
+/* Sidebar */
 section[data-testid="stSidebar"] {
     background-color: #242424;
 }
+
+/* Headings */
 h1, h2, h3 {
     color: #4DB6AC !important;
 }
@@ -47,8 +52,17 @@ th {
     background-color: #0E6251;
     color: white;
 }
+
+/* Input labels */
 label, .stNumberInput label, .stSelectbox label {
     color: #EAEAEA !important;
+}
+
+/* Help / description text (e.g., st.number_input help=..., markdown hints) */
+div[data-testid="stTooltipHoverTarget"] p,
+div[data-testid="stMarkdownContainer"] p,
+small, span[data-testid="stMarkdownContainer"] {
+    color: #CFCFCF !important;  /* brighter gray for dark background */
 }
 
 /* ----- Print Mode (white background) ----- */
@@ -66,12 +80,21 @@ label, .stNumberInput label, .stSelectbox label {
         background-color: #ddd !important;
         color: black !important;
     }
+    label, .stNumberInput label, .stSelectbox label {
+        color: black !important;
+    }
+    div[data-testid="stTooltipHoverTarget"] p,
+    div[data-testid="stMarkdownContainer"] p,
+    small, span[data-testid="stMarkdownContainer"] {
+        color: #333 !important;  /* darker text on white for print */
+    }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ---------------- Physics helpers ----------------
 def convective_h(wind_mph: float) -> float:
+    """Simple external convection correlation for wind over cylinder (tuned)."""
     return 1.5 + 0.25 * float(wind_mph)
 
 def compute_UA_per_mile(r_i_ft: float, r_o_ft: float, k_wall: float, h_out: float) -> float:
@@ -131,12 +154,16 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         mcp = m_dot * cp
         k = UA_total / mcp if mcp > 0 else 0.0
 
+        # Required inlet to hit target outlet
         T_in_required = T_amb + (T_out_target - T_amb) * np.exp(k)
         required_in.append(T_in_required)
+
+        # Pipe heat loss (info)
         Q_loss = mcp * (T_in_required - T_out_target)
         losses.append(Q_loss / 1e6)
 
         if T_source < T_in_required:
+            # Heater raises from source to required inlet
             Q_heater = mcp * (T_in_required - T_source)
             heater_duties.append(Q_heater / 1e6)
             outlet_vals.append(T_out_target)
@@ -192,17 +219,23 @@ else:  # HDPE
     id_in = od_in - 2 * wall_in
     k_wall = 0.26
 
-# Brightened sidebar text
-st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>", unsafe_allow_html=True)
+# Brightened Nominal + Actual display
+st.sidebar.markdown(
+    f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>",
+    unsafe_allow_html=True
+)
+st.sidebar.markdown(
+    f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>",
+    unsafe_allow_html=True
+)
 
 # --- Sidebar Inputs ---
 st.sidebar.header("Conditions")
-T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0)
-T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0)
-wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0)
-length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25)
-T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0)
+T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0, help="Temperature at the pump/source.")
+T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0, help="Outdoor air temperature.")
+wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0, help="Average crosswind over the exposed line.")
+length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25, help="Total pipeline length.")
+T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0, help="Target water temperature at the outlet.")
 
 st.sidebar.header("Flow Range")
 flow_min = st.sidebar.number_input("Min Flow (bbl/min)", value=15, step=5)
@@ -210,9 +243,9 @@ flow_max = st.sidebar.number_input("Max Flow (bbl/min)", value=120, step=5)
 flow_step = st.sidebar.number_input("Flow Step (bbl/min)", value=5, step=5)
 
 st.sidebar.header("Fuel & Heater Settings")
-efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5)
+efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5, help="Combustion/transfer efficiency.")
 fuel_type = st.sidebar.selectbox("Fuel Type", ["Propane", "Diesel", "Natural Gas"])
-fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01)
+fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01, help="$/gal for liquids, $/therm for natural gas.")
 
 fuel_btu = {"Propane": 91500, "Diesel": 138700, "Natural Gas": 103000}
 btu_per_unit = fuel_btu[fuel_type]
@@ -228,7 +261,7 @@ df, UA_per_mile, UA_total = inlet_temp_curve(
     nested_cfg=nested_cfg
 )
 
-# ---------------- Print Button ----------------
+# ---------------- Print Button (reliable JS trigger) ----------------
 components.html(
     """
     <div style="text-align:center; margin: 12px 0 4px;">
@@ -251,10 +284,12 @@ components.html(
 
 # ---------------- Results Table ----------------
 st.subheader(
-    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
+    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | "
+    f"Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
 )
 df_fmt = df.copy()
-for c in ["Flow (bbl/min)", "Source Temp (°F)", "Required Inlet Temp (°F)", "Outlet Temp (°F)", "Heat Loss (MMBtu/hr)", "Heater Duty (MMBtu/hr)"]:
+for c in ["Flow (bbl/min)", "Source Temp (°F)", "Required Inlet Temp (°F)", "Outlet Temp (°F)",
+          "Heat Loss (MMBtu/hr)", "Heater Duty (MMBtu/hr)"]:
     if "Temp" in c:
         df_fmt[c] = df_fmt[c].map("{:.1f} °F".format)
     elif "Flow" in c:
@@ -272,8 +307,8 @@ ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choi
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
 ax.grid(True, color="#444")
-ax.set_facecolor("#1B1B1B")
-ax.tick_params(colors="#EAEAEA")
+ax.set_facecolor("#1B1B1B")   # match dark background
+ax.tick_params(colors="#EAEAEA")  # brighten axis labels
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.legend()
