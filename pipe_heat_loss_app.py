@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import math
+import streamlit.components.v1 as components
 
 # ---------------- Page / Branding ----------------
 st.set_page_config(page_title="Pipeline Heat Loss Calculator", page_icon="💧", layout="centered")
@@ -26,6 +27,8 @@ section[data-testid="stSidebar"] {
 h1, h2, h3 {
     color: #4DB6AC !important;
 }
+
+/* Tables */
 table {
     border-collapse: collapse;
     width: 100%;
@@ -34,12 +37,19 @@ table {
 }
 th, td {
     text-align: center !important;
-    border: 1px solid #444;
+    border: 1px solid #555;  /* slightly lighter border */
     padding: 8px;
 }
-tr:nth-child(even) { background-color: #2E2E2E; }
-th { background-color: #0E6251; color: white; }
-label, .stNumberInput label, .stSelectbox label { color: #EAEAEA !important; }
+tr:nth-child(even) {
+    background-color: #343434;  /* lighter alternating row */
+}
+th {
+    background-color: #0E6251;
+    color: white;
+}
+label, .stNumberInput label, .stSelectbox label {
+    color: #EAEAEA !important;
+}
 
 /* ----- Print Mode (white background) ----- */
 @media print {
@@ -219,15 +229,25 @@ df, UA_per_mile, UA_total = inlet_temp_curve(
 )
 
 # ---------------- Print Button ----------------
-st.markdown("""
-<script>
-function printPage() {
-  window.print();
-}
-</script>
-""", unsafe_allow_html=True)
-
-st.markdown("<center><button onclick='printPage()' style='background:#4DB6AC; color:white; border:none; padding:10px 25px; font-size:16px; border-radius:8px; cursor:pointer;'>🖨️ Print Results</button></center>", unsafe_allow_html=True)
+components.html(
+    """
+    <div style="text-align:center; margin: 12px 0 4px;">
+      <button id="printBtn"
+              style="background:#4DB6AC; color:white; border:none; padding:10px 25px; font-size:16px; border-radius:8px; cursor:pointer;">
+        🖨️ Print Results
+      </button>
+    </div>
+    <script>
+      const btn = document.getElementById('printBtn');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          window.print();
+        });
+      }
+    </script>
+    """,
+    height=80,
+)
 
 # ---------------- Results Table ----------------
 st.subheader(
