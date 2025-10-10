@@ -71,6 +71,13 @@ label, .stNumberInput label, .stSelectbox label {
     table > tbody > tr:nth-child(even) {
         background-color: #f2f2f2 !important; /* lighter zebra rows for printing */
     }
+    /* Darken sidebar text for print */
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] small,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #333 !important; /* darker gray on white print background */
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -199,21 +206,21 @@ st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_
 
 # ---------------- Sidebar Inputs (Conditions) ----------------
 st.sidebar.header("Conditions")
-T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0)
-T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0)
-wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0)
-length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25)
-T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0)
+T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0, help="Temperature at the source or pump.")
+T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0, help="Average air temperature along the line.")
+wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0, help="Estimated wind speed affecting convective loss.")
+length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25, help="Total horizontal pipeline distance.")
+T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0, help="Target water temperature at outlet.")
 
 st.sidebar.header("Flow Range")
-flow_min = st.sidebar.number_input("Min Flow (bbl/min)", value=15, step=5)
-flow_max = st.sidebar.number_input("Max Flow (bbl/min)", value=120, step=5)
-flow_step = st.sidebar.number_input("Flow Step (bbl/min)", value=5, step=5)
+flow_min = st.sidebar.number_input("Min Flow (bbl/min)", value=15, step=5, help="Lowest expected operational flow.")
+flow_max = st.sidebar.number_input("Max Flow (bbl/min)", value=120, step=5, help="Highest expected operational flow.")
+flow_step = st.sidebar.number_input("Flow Step (bbl/min)", value=5, step=5, help="Flow increment for table output.")
 
 st.sidebar.header("Fuel & Heater Settings")
-efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5)
-fuel_type = st.sidebar.selectbox("Fuel Type", ["Propane", "Diesel", "Natural Gas"])
-fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01)
+efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5, help="Combustion or transfer efficiency of heater.")
+fuel_type = st.sidebar.selectbox("Fuel Type", ["Propane", "Diesel", "Natural Gas"], help="Select heater fuel type.")
+fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01, help="$/gal for liquid fuels, $/therm for gas.")
 
 fuel_btu = {"Propane": 91500, "Diesel": 138700, "Natural Gas": 103000}
 btu_per_unit = fuel_btu[fuel_type]
