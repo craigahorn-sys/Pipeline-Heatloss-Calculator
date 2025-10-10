@@ -67,9 +67,25 @@ small, span[data-testid="stMarkdownContainer"] {
 
 /* ----- Print Mode (white background) ----- */
 @media print {
-    body, .stApp, section[data-testid="stSidebar"] {
+    /* Make sure we print the main app, not sidebar/header */
+    body, .stApp {
         background: white !important;
         color: black !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    header, footer,
+    [data-testid="stHeader"],
+    section[data-testid="stSidebar"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Expand main content to full width */
+    .block-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
     table {
         background: white !important;
@@ -261,7 +277,7 @@ df, UA_per_mile, UA_total = inlet_temp_curve(
     nested_cfg=nested_cfg
 )
 
-# ---------------- Print Button (reliable JS trigger) ----------------
+# ---------------- Print Button (call parent window to print whole app) ----------------
 components.html(
     """
     <div style="text-align:center; margin: 12px 0 4px;">
@@ -273,8 +289,18 @@ components.html(
     <script>
       const btn = document.getElementById('printBtn');
       if (btn) {
-        btn.addEventListener('click', () => {
-          window.print();
+        btn.addEventListener('click', (e) => {
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.focus();
+              window.parent.print();   // <-- print the PARENT page, not the iframe
+            } else {
+              window.print();
+            }
+          } catch (err) {
+            console.error('Print error:', err);
+            window.print();
+          }
         });
       }
     </script>
