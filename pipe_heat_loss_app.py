@@ -16,23 +16,16 @@ except Exception:
 # ---------------- Brighter Dark Theme CSS ----------------
 st.markdown("""
 <style>
-/* Overall background */
 body, .stApp {
-    background-color: #1B1B1B;  /* lighter charcoal */
-    color: #EAEAEA;            /* brighter text */
+    background-color: #1B1B1B;
+    color: #EAEAEA;
 }
-
-/* Sidebar background */
 section[data-testid="stSidebar"] {
-    background-color: #242424;  /* slightly lighter than before */
+    background-color: #242424;
 }
-
-/* Headings */
 h1, h2, h3 {
-    color: #4DB6AC !important;  /* teal-green accent */
+    color: #4DB6AC !important;
 }
-
-/* Tables */
 table {
     border-collapse: collapse;
     width: 100%;
@@ -44,17 +37,25 @@ th, td {
     border: 1px solid #444;
     padding: 8px;
 }
-tr:nth-child(even) {
-    background-color: #2E2E2E;
-}
-th {
-    background-color: #0E6251;
-    color: white;
-}
+tr:nth-child(even) { background-color: #2E2E2E; }
+th { background-color: #0E6251; color: white; }
+label, .stNumberInput label, .stSelectbox label { color: #EAEAEA !important; }
 
-/* Input labels */
-label, .stNumberInput label, .stSelectbox label {
-    color: #EAEAEA !important;
+/* ----- Print Mode (white background) ----- */
+@media print {
+    body, .stApp, section[data-testid="stSidebar"] {
+        background: white !important;
+        color: black !important;
+    }
+    table {
+        background: white !important;
+        color: black !important;
+        border-color: #999 !important;
+    }
+    th {
+        background-color: #ddd !important;
+        color: black !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -83,7 +84,6 @@ def UA_per_mile_nested(inner_nom_in: float, outer_nom_in: float, wall_in: float,
     R_outer = math.log(r_o_outer / r_i_outer) / (2 * math.pi * k_wall * 5280.0)
     A_out   = 2 * math.pi * r_o_outer * 5280.0
     R_o     = 1.0 / (h_out * A_out)
-
     return 1.0 / (R_inner + R_air + R_outer + R_o)
 
 def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
@@ -121,16 +121,12 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         mcp = m_dot * cp
         k = UA_total / mcp if mcp > 0 else 0.0
 
-        # Required inlet to hit target outlet
         T_in_required = T_amb + (T_out_target - T_amb) * np.exp(k)
         required_in.append(T_in_required)
-
-        # Pipe heat loss (for info only)
         Q_loss = mcp * (T_in_required - T_out_target)
         losses.append(Q_loss / 1e6)
 
         if T_source < T_in_required:
-            # Heater must raise from source temp to required inlet
             Q_heater = mcp * (T_in_required - T_source)
             heater_duties.append(Q_heater / 1e6)
             outlet_vals.append(T_out_target)
@@ -168,16 +164,13 @@ if pipe_type == "Layflat TPU":
     wall_in = 0.15
     id_in = od_in - 2 * wall_in
     k_wall = 0.116
-
 elif pipe_type == "Nested TPU Layflat":
     inner_nom, outer_nom = nom_d_in, nom_d_in + 4.0
     wall_in = 0.15
     id_in = inner_nom - 2 * wall_in
     od_in = outer_nom
     k_wall = 0.116
-    nested_cfg = {"inner_nom_in": inner_nom, "outer_nom_in": outer_nom,
-                  "k_eff_air": 0.08, "add_5pct": True}
-
+    nested_cfg = {"inner_nom_in": inner_nom, "outer_nom_in": outer_nom, "k_eff_air": 0.08, "add_5pct": True}
 else:  # HDPE
     HDPE_OD_MAP = {"4 in": 4.500, "6 in": 6.625, "8 in": 8.625, "10 in": 10.750,
                    "12 in": 12.750, "14 in": 14.000, "16 in": 16.000, "18 in": 18.000,
@@ -189,16 +182,11 @@ else:  # HDPE
     id_in = od_in - 2 * wall_in
     k_wall = 0.26
 
-# Brightened Nominal + Actual display
-st.sidebar.markdown(
-    f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>",
-    unsafe_allow_html=True
-)
-st.sidebar.markdown(
-    f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>",
-    unsafe_allow_html=True
-)
+# Brightened sidebar text
+st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>", unsafe_allow_html=True)
 
+# --- Sidebar Inputs ---
 st.sidebar.header("Conditions")
 T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0)
 T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0)
@@ -230,31 +218,30 @@ df, UA_per_mile, UA_total = inlet_temp_curve(
     nested_cfg=nested_cfg
 )
 
+# ---------------- Print Button ----------------
+st.markdown("""
+<script>
+function printPage() {
+  window.print();
+}
+</script>
+""", unsafe_allow_html=True)
+
+st.markdown("<center><button onclick='printPage()' style='background:#4DB6AC; color:white; border:none; padding:10px 25px; font-size:16px; border-radius:8px; cursor:pointer;'>🖨️ Print Results</button></center>", unsafe_allow_html=True)
+
 # ---------------- Results Table ----------------
 st.subheader(
-    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | "
-    f"Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
+    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
 )
-
 df_fmt = df.copy()
-df_fmt["Flow (bbl/min)"] = df_fmt["Flow (bbl/min)"].map("{:.0f}".format)
-df_fmt["Source Temp (°F)"] = df_fmt["Source Temp (°F)"].map("{:.1f} °F".format)
-df_fmt["Required Inlet Temp (°F)"] = df_fmt["Required Inlet Temp (°F)"].map("{:.1f} °F".format)
-df_fmt["Outlet Temp (°F)"] = df_fmt["Outlet Temp (°F)"].map("{:.1f} °F".format)
-df_fmt["Heat Loss (MMBtu/hr)"] = df_fmt["Heat Loss (MMBtu/hr)"].map("{:.2f}".format)
-df_fmt["Heater Duty (MMBtu/hr)"] = df_fmt["Heater Duty (MMBtu/hr)"].map("{:.2f}".format)
+for c in ["Flow (bbl/min)", "Source Temp (°F)", "Required Inlet Temp (°F)", "Outlet Temp (°F)", "Heat Loss (MMBtu/hr)", "Heater Duty (MMBtu/hr)"]:
+    if "Temp" in c:
+        df_fmt[c] = df_fmt[c].map("{:.1f} °F".format)
+    elif "Flow" in c:
+        df_fmt[c] = df_fmt[c].map("{:.0f}".format)
+    else:
+        df_fmt[c] = df_fmt[c].map("{:.2f}".format)
 df_fmt["Daily Fuel Cost ($)"] = df_fmt["Daily Fuel Cost ($)"].map(lambda x: f"${x:,.0f}")
-
-df_fmt = df_fmt[[
-    "Flow (bbl/min)",
-    "Source Temp (°F)",
-    "Required Inlet Temp (°F)",
-    "Outlet Temp (°F)",
-    "Heat Loss (MMBtu/hr)",
-    "Heater Duty (MMBtu/hr)",
-    "Daily Fuel Cost ($)"
-]]
-
 st.markdown(df_fmt.to_html(index=False, justify="center"), unsafe_allow_html=True)
 
 # ---------------- Chart ----------------
@@ -265,8 +252,8 @@ ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choi
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
 ax.grid(True, color="#444")
-ax.set_facecolor("#1B1B1B")   # match dark background
-ax.tick_params(colors="#EAEAEA")  # brighten axis labels
+ax.set_facecolor("#1B1B1B")
+ax.tick_params(colors="#EAEAEA")
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.legend()
