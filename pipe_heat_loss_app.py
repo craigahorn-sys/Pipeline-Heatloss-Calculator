@@ -3,37 +3,32 @@ import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 import math
-import streamlit.components.v1 as components
 
 # ---------------- Page / Branding ----------------
 st.set_page_config(page_title="Pipeline Heat Loss Calculator", page_icon="💧", layout="centered")
 
-# Logo (place logo.png next to this script)
+# Logo
 try:
     st.image("logo.png", width=150)
 except Exception:
-    pass  # continue without logo if not found
+    pass
 
-# ---------------- Brighter Dark Theme CSS (with readable help/description + print mode) ----------------
+# ---------------- Dark Theme + Print Styles ----------------
 st.markdown("""
 <style>
-/* Overall app */
+/* Main dark theme */
 body, .stApp {
     background-color: #1B1B1B;
     color: #EAEAEA;
 }
-
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background-color: #242424;
 }
-
-/* Headings */
 h1, h2, h3 {
     color: #4DB6AC !important;
 }
 
-/* Tables */
+/* Table styling */
 table {
     border-collapse: collapse;
     width: 100%;
@@ -42,50 +37,27 @@ table {
 }
 th, td {
     text-align: center !important;
-    border: 1px solid #555;  /* slightly lighter border */
+    border: 1px solid #555;
     padding: 8px;
 }
-tr:nth-child(even) {
-    background-color: #343434;  /* lighter alternating row */
+table > tbody > tr:nth-child(even) {
+    background-color: #2E2E2E !important; /* dark zebra rows for screen */
 }
 th {
     background-color: #0E6251;
     color: white;
 }
 
-/* Input labels */
+/* Sidebar labels */
 label, .stNumberInput label, .stSelectbox label {
     color: #EAEAEA !important;
 }
 
-/* Help / description text (e.g., st.number_input help=..., markdown hints) */
-div[data-testid="stTooltipHoverTarget"] p,
-div[data-testid="stMarkdownContainer"] p,
-small, span[data-testid="stMarkdownContainer"] {
-    color: #CFCFCF !important;  /* brighter gray for dark background */
-}
-
-/* ----- Print Mode (white background) ----- */
+/* Print mode */
 @media print {
-    /* Make sure we print the main app, not sidebar/header */
-    body, .stApp {
+    body, .stApp, section[data-testid="stSidebar"] {
         background: white !important;
         color: black !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    header, footer,
-    [data-testid="stHeader"],
-    section[data-testid="stSidebar"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    /* Expand main content to full width */
-    .block-container {
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
     }
     table {
         background: white !important;
@@ -96,13 +68,8 @@ small, span[data-testid="stMarkdownContainer"] {
         background-color: #ddd !important;
         color: black !important;
     }
-    label, .stNumberInput label, .stSelectbox label {
-        color: black !important;
-    }
-    div[data-testid="stTooltipHoverTarget"] p,
-    div[data-testid="stMarkdownContainer"] p,
-    small, span[data-testid="stMarkdownContainer"] {
-        color: #333 !important;  /* darker text on white for print */
+    table > tbody > tr:nth-child(even) {
+        background-color: #f2f2f2 !important; /* lighter zebra rows for printing */
     }
 }
 </style>
@@ -110,7 +77,6 @@ small, span[data-testid="stMarkdownContainer"] {
 
 # ---------------- Physics helpers ----------------
 def convective_h(wind_mph: float) -> float:
-    """Simple external convection correlation for wind over cylinder (tuned)."""
     return 1.5 + 0.25 * float(wind_mph)
 
 def compute_UA_per_mile(r_i_ft: float, r_o_ft: float, k_wall: float, h_out: float) -> float:
@@ -120,8 +86,7 @@ def compute_UA_per_mile(r_i_ft: float, r_o_ft: float, k_wall: float, h_out: floa
     R_out = 1.0 / (h_out * area_per_mile)
     return 1.0 / (R_wall + R_out)
 
-def UA_per_mile_nested(inner_nom_in: float, outer_nom_in: float, wall_in: float,
-                       k_wall: float, h_out: float, k_eff_air: float) -> float:
+def UA_per_mile_nested(inner_nom_in, outer_nom_in, wall_in, k_wall, h_out, k_eff_air):
     def r_ft(d_in): return (d_in / 12.0) / 2.0
     r_o_inner = r_ft(inner_nom_in)
     r_i_inner = r_ft(inner_nom_in - 2.0*wall_in)
@@ -129,10 +94,10 @@ def UA_per_mile_nested(inner_nom_in: float, outer_nom_in: float, wall_in: float,
     r_i_outer = r_ft(outer_nom_in - 2.0*wall_in)
 
     R_inner = math.log(r_o_inner / r_i_inner) / (2 * math.pi * k_wall * 5280.0)
-    R_air   = math.log(r_i_outer / r_o_inner) / (2 * math.pi * k_eff_air * 5280.0)
+    R_air = math.log(r_i_outer / r_o_inner) / (2 * math.pi * k_eff_air * 5280.0)
     R_outer = math.log(r_o_outer / r_i_outer) / (2 * math.pi * k_wall * 5280.0)
-    A_out   = 2 * math.pi * r_o_outer * 5280.0
-    R_o     = 1.0 / (h_out * A_out)
+    A_out = 2 * math.pi * r_o_outer * 5280.0
+    R_o = 1.0 / (h_out * A_out)
     return 1.0 / (R_inner + R_air + R_outer + R_o)
 
 def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
@@ -161,35 +126,29 @@ def inlet_temp_curve(T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
         UA_pm = compute_UA_per_mile(r_i, r_o, k_wall, h)
 
     UA_total = UA_pm * float(length_miles)
-
     flows = np.arange(flow_min, flow_max + 1, flow_step, dtype=float)
+
     required_in, losses, heater_duties, outlet_vals, fuel_costs = [], [], [], [], []
 
     for f in flows:
         m_dot = f * lb_per_bbl * 60.0
         mcp = m_dot * cp
         k = UA_total / mcp if mcp > 0 else 0.0
-
-        # Required inlet to hit target outlet
         T_in_required = T_amb + (T_out_target - T_amb) * np.exp(k)
         required_in.append(T_in_required)
 
-        # Pipe heat loss (info)
         Q_loss = mcp * (T_in_required - T_out_target)
         losses.append(Q_loss / 1e6)
 
         if T_source < T_in_required:
-            # Heater raises from source to required inlet
             Q_heater = mcp * (T_in_required - T_source)
             heater_duties.append(Q_heater / 1e6)
             outlet_vals.append(T_out_target)
             fuel_cost = ((Q_heater * 24) / eff_frac) / btu_per_unit * fuel_price
         else:
-            Q_heater = 0
             heater_duties.append(0)
             outlet_vals.append(T_amb + (T_source - T_amb) * np.exp(-k))
             fuel_cost = 0
-
         fuel_costs.append(fuel_cost)
 
     df = pd.DataFrame({
@@ -235,23 +194,16 @@ else:  # HDPE
     id_in = od_in - 2 * wall_in
     k_wall = 0.26
 
-# Brightened Nominal + Actual display
-st.sidebar.markdown(
-    f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>",
-    unsafe_allow_html=True
-)
-st.sidebar.markdown(
-    f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>",
-    unsafe_allow_html=True
-)
+st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Nominal Diameter: {nominal_choice}</p>", unsafe_allow_html=True)
+st.sidebar.markdown(f"<p style='color:#FFFFFF; font-weight:600;'>Actual OD: {od_in:.3f} in | ID: {id_in:.3f} in</p>", unsafe_allow_html=True)
 
-# --- Sidebar Inputs ---
+# ---------------- Sidebar Inputs (Conditions) ----------------
 st.sidebar.header("Conditions")
-T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0, help="Temperature at the pump/source.")
-T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0, help="Outdoor air temperature.")
-wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0, help="Average crosswind over the exposed line.")
-length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25, help="Total pipeline length.")
-T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0, help="Target water temperature at the outlet.")
+T_source = st.sidebar.number_input("Source Water Temperature (°F)", value=35.0, step=1.0)
+T_amb = st.sidebar.number_input("Ambient Temperature (°F)", value=0.0, step=5.0)
+wind_mph = st.sidebar.number_input("Wind Speed (mph)", value=5.0, step=1.0)
+length_miles = st.sidebar.number_input("Line Length (miles)", value=5.0, step=0.25)
+T_out_target = st.sidebar.number_input("Desired Outlet Temp (°F)", value=35.0, step=1.0)
 
 st.sidebar.header("Flow Range")
 flow_min = st.sidebar.number_input("Min Flow (bbl/min)", value=15, step=5)
@@ -259,9 +211,9 @@ flow_max = st.sidebar.number_input("Max Flow (bbl/min)", value=120, step=5)
 flow_step = st.sidebar.number_input("Flow Step (bbl/min)", value=5, step=5)
 
 st.sidebar.header("Fuel & Heater Settings")
-efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5, help="Combustion/transfer efficiency.")
+efficiency = st.sidebar.number_input("Heater Efficiency (%)", min_value=10, max_value=100, value=75, step=5)
 fuel_type = st.sidebar.selectbox("Fuel Type", ["Propane", "Diesel", "Natural Gas"])
-fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01, help="$/gal for liquids, $/therm for natural gas.")
+fuel_price = st.sidebar.number_input("Fuel Cost ($/unit)", value=2.30, step=0.01)
 
 fuel_btu = {"Propane": 91500, "Diesel": 138700, "Natural Gas": 103000}
 btu_per_unit = fuel_btu[fuel_type]
@@ -269,49 +221,24 @@ eff_frac = efficiency / 100.0
 
 # ---------------- Run Calculation ----------------
 df, UA_per_mile, UA_total = inlet_temp_curve(
-    T_amb=T_amb, wind_mph=wind_mph, length_miles=length_miles,
-    id_in=id_in, wall_in=wall_in, k_wall=k_wall,
-    T_out_target=T_out_target, T_source=T_source,
-    eff_frac=eff_frac, fuel_price=fuel_price, btu_per_unit=btu_per_unit,
-    flow_min=flow_min, flow_max=flow_max, flow_step=flow_step,
-    nested_cfg=nested_cfg
+    T_amb, wind_mph, length_miles, id_in, wall_in, k_wall,
+    T_out_target, T_source, eff_frac, fuel_price, btu_per_unit,
+    flow_min, flow_max, flow_step, nested_cfg
 )
 
-# ---------------- Print Button (call parent window to print whole app) ----------------
-components.html(
-    """
-    <div style="text-align:center; margin: 12px 0 4px;">
-      <button id="printBtn"
-              style="background:#4DB6AC; color:white; border:none; padding:10px 25px; font-size:16px; border-radius:8px; cursor:pointer;">
-        🖨️ Print Results
-      </button>
-    </div>
-    <script>
-      const btn = document.getElementById('printBtn');
-      if (btn) {
-        btn.addEventListener('click', (e) => {
-          try {
-            if (window.parent && window.parent !== window) {
-              window.parent.focus();
-              window.parent.print();   // <-- print the PARENT page, not the iframe
-            } else {
-              window.print();
-            }
-          } catch (err) {
-            console.error('Print error:', err);
-            window.print();
-          }
-        });
-      }
-    </script>
-    """,
-    height=80,
-)
+# ---------------- Print Button ----------------
+st.markdown("""
+<script>
+function printPage() {
+  window.print();
+}
+</script>
+""", unsafe_allow_html=True)
+st.markdown("<center><button onclick='printPage()' style='background:#4DB6AC; color:white; border:none; padding:10px 25px; font-size:16px; border-radius:8px; cursor:pointer;'>🖨️ Print Results</button></center>", unsafe_allow_html=True)
 
 # ---------------- Results Table ----------------
 st.subheader(
-    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | "
-    f"Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
+    f"Results Table (Source: {T_source} °F | Target Outlet: {T_out_target} °F | Ambient: {T_amb} °F | Wind: {wind_mph} mph)"
 )
 df_fmt = df.copy()
 for c in ["Flow (bbl/min)", "Source Temp (°F)", "Required Inlet Temp (°F)", "Outlet Temp (°F)",
@@ -333,8 +260,8 @@ ax.set_title(f"Temperature Profiles vs Flow\n{pipe_type} | Nominal {nominal_choi
 ax.set_xlabel("Flow (bbl/min)")
 ax.set_ylabel("Temperature (°F)")
 ax.grid(True, color="#444")
-ax.set_facecolor("#1B1B1B")   # match dark background
-ax.tick_params(colors="#EAEAEA")  # brighten axis labels
+ax.set_facecolor("#1B1B1B")
+ax.tick_params(colors="#EAEAEA")
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.legend()
